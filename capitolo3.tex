@@ -1,0 +1,147 @@
+\chapter{Applicazione per la Sentiment Analysis}
+%\section{Analisi dei requisiti}
+%%L'applicativo richiesto è stato commissionato dall'azienda Librasoft Snc\footnote{http://www.librasoftsnc.it/} come base per lo sviluppo di un progetto futuro dedicato alla Sentiment Analysis. L'azienda desidera infatti mettere a disposizione della propria clientela un servizio che sia in grado di effettuare un'indagine di opinione riguardo a un loro particolare servizio o prodotto, per restituire un report che indichi il livello di gradimento espresso dagli utenti del web, dividendo i dati analizzati fra positivi e negativi.   \newline
+%Il prototipo da realizzare si dovrà comporre di due parti principali, ovvero un'interfaccia lato client per l'interazione con l'utente e un server adibito all'ottenimento e all'analisi dei dati. Più nel dettaglio, il client dovrà fornire un form tramite il quale l'utente possa inserire i parametri di ricerca e filtri per i dati da analizzare (come ad esempio parole chiavi, periodo di tempo, autore, ecc). Una volta ottenuti i dati dal server, l'interfaccia mostrerà un pannello contenente una rappresentazione grafica del risultato e una tabella riassuntiva dei dati analizzati. \newline
+%Il lato server dovrà occuparsi invece della parte computazionale vera e propria. Innanzitutto, una volta ottenuti i filtri di ricerca dal client, dovrà ottenere i dati dalle sorgenti supportate (nel caso del prototipo, la sorgente unica è Twitter) e normalizzarli. Conclusa questa fase, i dati saranno passati a un classificatore, che li classificherà tra positivi e negativi tenendo conto di diversi aspetti, come la polarità delle parole contenute, la presenza di intensificatori (quali avverbi, superlativi) e di emoticon. Una volta classificati, per la stesura del report finale si dovrà tener conto della rilevanza del dato, ovvero di un valore numerico che indica quanto quel dato è "visibile" all'interno del web (ad esempio sarà dato maggior peso a un tweet pubblicato da una persona con migliaia di followers rispetto a un tweet di un utente con qualche decina di followers). \newline
+%Un aspetto fondamentale che dovrà essere implementato è la completa separazione tra la fase di ottenimento dei dati da diverse sorgenti e la fase di classificazione di essi; la seconda dovrà essere per quanto possibile indipendente dalla sorgente del dato (tranne ovviamente per aspetti come il calcolo della rilevanza, per il quale vengono utilizzati parametri caratteristici del dato).
+%Dire anche del fatto che eventuali nuovi componenti dovranno essere più pluggabili possibile?
+%È richiesto inoltre che i componenti e i parametri dell'applicativo lato server siano configurabili tramite un file esterno di configurazione, senza dover modificare il codice interno. 
+\section{Architettura}
+% - TODO - Cerca di renderla più discorsiva - /TODO -
+
+Si è deciso di sviluppare l'applicativo di Sentiment Analysis su un'architettura di tipo client-server; i due componenti hanno ruoli essenzialmente diversi. 
+Il client si occupa dell'interazione con l'utente e della restituzione a quest'ultimo dei risultati ottenuti, dopo aver inoltrato la richiesta al server. L'ottenimento dei dati da analizzare e la successiva classificazione di questi è invece compito del server. L'interfacciamento tra i due componenti è possibile grazie al servizio di API REST reso disponibile a lato server. 
+
+\subsection{Client web}
+I compiti del client sono principalmente due. Innanzitutto mette a disposizione dell'utente un form in cui inserire i parametri di ricerca e i filtri desiderati per i dati da analizzare. Fra i parametri che è possibile inserire troviamo:
+\begin{itemize}
+    \item Autore 
+    \item Tag, ovvero persone citate tramite il simbolo \textit{"@"}
+    \item Parole chiave
+    \item Parole che non devono essere presenti
+    \item Lingua (in caso di sviluppi futuri in lingue diverse dall'italiano)
+    \item Data iniziale dell'intervallo temporale di interesse
+    \item Data finale dell'intervallo temporale di interesse 
+    \item Possibilità di escludere i dati contenenti URL e contenuti multimediali.
+\end{itemize}
+
+La gestione dell'invio della richiesta HTTP verso il server con i parametri opportuni è stata realizzata tramite il modulo \textit{ngResource} di AngularJS. Utilizzando il suddetto modulo è infatti possibile creare un oggetto \textit{resource} che permette di interagire con le risorse dati di tipo RESTful ottenute tramite richiesta al server. Si procede quindi con una richiesta di tipo GET, in seguito alla quale si ottiene in risposta un file JSON rappresentante il report stilato. Il report contiene i seguenti campi:
+\begin{itemize}
+    \item \textit{status}: stringa indicante se l'analisi è andata a buon fine. I valori possono essere "OK" oppure "NOTOK".
+    \item \textit{message}: nel caso in cui lo status sia "NOTOK", stringa che descrive il motivo del fallimento dell'analisi.
+    \item \textit{result}: descrizione testuale del risultato del report.
+    \item \textit{total}: numero totale di dati analizzati.
+    \item \textit{positive}: numero di dati giudicati positivi.
+    \item \textit{negative}: numero di dati giudicati negativi. 
+    \item \textit{negExample}: esempio di testo negativo analizzato.
+    \item \textit{posExample}: esempio di testo positivo analizzato.
+\end{itemize}
+
+Se l'analisi da parte del server non è andata a buon fine, il client mostra il messaggio di errore ottenuto all'utente. I casi in cui l'analisi può non concludersi correttamente sono due: o non è stato possibile recuperare dati conformi ai parametri inseriti, o questi ultimi non sono sufficienti per eseguire la query. \newline 
+Se al contrario l'analisi è stata effettuata correttamente, l'interfaccia mostrerà un pannello riassuntivo del report, raffigurante i dati sia in forma testuale all'interno di una tabella, sia graficamente attraverso un diagramma a torta, realizzato tramite la libreria c3.js. \newline
+Considerata la semplicità del lato client, durante la prototipazione si è deciso di utilizzare lo strumento \textit{http-server}\footnote{https://www.npmjs.com/package/http-server}, basato su Node.js, il quale fornisce le minime funzionalità necessarie per la corretta esecuzione del web server. Si è scelto di eseguirlo su porta 8089.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.3]{images/interfaccia_c.png}
+    \caption{Interfaccia utente lato client, con esempio di report finale}
+    \label{fig:interfaccia}
+\end{figure}
+\newpage
+\subsection{Server}
+Il \textit{core} dell'applicazione risiede quasi completamente all'interno del server. Esso infatti si occupa delle due parti fondamentali per il funzionamento dell'applicativo: l'ottenimento dei dati e l'elaborazione del report finale da restituire all'utente. Il server si appoggia su Apache Tomcat per la sua esecuzione, in particolare il prototipo è stato eseguito in locale sulla porta 8088. 
+
+\subsubsection{API REST}
+Attraverso l'utilizzo del framework Spring, il server mette a disposizione delle API REST alle quali il client può effettuare richieste, passando gli opportuni parametri. Le classi adibite a tale compito sono contenute all'interno del package \textit{endpoint}; esse sono infatti caratterizzate dall'annotazione di Spring \textit{@RestController}. Il metodo che viene eseguito al loro interno è invece preceduto dall'annotazione \textit{@RequestMapping} al cui interno viene specificato il percorso che verrà reindirizzato al metodo in esame. Ad esempio all'interno del prototipo sono mappati i seguenti indirizzi:
+\begin{itemize}
+    \item \textit{/report}: indirizzo al quale viene chiesto il report finale e vengono passati i parametri di filtro dei dati da analizzare.
+    \item \textit{/test} : utilizzato per eseguire i test in fase di sviluppo. 
+\end{itemize}
+
+Inoltre è stato necessario configurare i domini che potessero avere accesso alle risorse del server (in questo caso particolare, il dominio del client http://127.0.0.1:8089). Questo meccanismo, chiamato CORS (Cross-Origin Resource Sharing) è stato attuato perchè, per motivi di sicurezza, non è permesso effettuare richieste HTTP via Javascript a un dominio differente da quello in cui ci si trova; affinchè sia comunque possibile fare ciò, è sufficiente aggiungere l'indirizzo del lato client fra gli indirizzi autorizzati all'accesso.
+
+\subsubsection{Ottenimento dei dati}
+Ottenuti i parametri di ricerca, la fase successiva consiste nell'ottenere i dati da analizzare dal Web. Il prototipo realizzato ha come unica sorgente Twitter, in quanto esso fornisce un buon servizio di API REST e la grande quantità di informazioni pubblicate ogni giorno rappresenta un'ottima fonte di dati da analizzare. Tuttavia la progettazione si è concentrata sul rendere l'applicativo più estendibile possibile, in modo da rendere poco onerosa la futura integrazione di nuove sorgenti di dati. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.5]{images/uml_twitter.png}
+    \caption{Schema UML delle classi adibite all'ottenimento dei dati}
+    \label{fig:uml_twitter}
+\end{figure}
+
+È stata creata l'interfaccia \textit{SourceController} affinchè astraesse il concetto di controller adibito all'ottenimento di dati dalla sorgente; come unico metodo infatti presenta il \textit{getter} per la lista di dati. \newline
+Nel caso particolare di Twitter, è stato creata la classe \textit{TwitterController} che a sua volta utilizza un oggetto di tipo \textit{TwitterConnection}. Quest'ultima gestisce al suo interno una singola query alle API di Twitter, eseguita attraverso gli strumenti messi a disposizione dalla libreria Twitter4J\footnote{http://twitter4j.org/}. Si è scelto di creare un oggetto a parte per la singola connessione a Twitter perchè le API fornite restituiscono al più 100 risultati per volta, nonostante non siano gli unici a rispondere ai criteri della query. Per ovviare a questo problema, all'interno del \textit{TwitterController} si iterano le connessioni, settando di volta in volta come parametro \textit{max\_id} (indicante l'id massimo da recuperare tramite una richiesta) l'id minore ottenuto fino a quel momento; quando la query non restituirà più risultati o ne restituirà in numero inferiore a 100, si considereranno conclusi i dati da recuperare. \newline
+Un aspetto importante che è stato necessario tenere in considerazione è la normalizzazione dei dati ottenuti, in modo che, una volta passati alla fase successiva di analisi, l'applicativo fosse il meno vincolato possibile alla sorgente. È stata creata a questo fine l'interfaccia Data, la quale dovrà essere implementata da qualsiasi classe che rappresenterà i dati estrapolati dalle sorgenti.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[scale=0.43]{images/uml_data.png}
+    \caption{Modellazione in UML del concetto di Data all'interno dell'applicativo}
+    \label{fig:my_label}
+\end{figure}
+
+Nel prototipo realizzato sono state implementate le classi rappresentanti il \textit{Tweet} preso da Twitter e il \textit{TestData}, rappresentante il dato proveniente dai test set. La normalizzazione dei dati ottenuti,  cioè, nel caso particolare di Twitter, la trasformazione di oggetti di tipo \textit{Status} (caratteristici della libreria Twitter4J) in oggetti di tipo \textit{Tweet}, viene affidata alle classi che implementano l'interfaccia \textit{SourceController}.  \newline 
+Come elemento "intermedio" fra la prima fase di acquisizione dei dati e la successiva di analisi è stato creato il \textit{MainController}. Esso è un oggetto in grado di acquisire i parametri di ricerca, di passarli ai vari \textit{SourceController}, di ottenere i dati corrispondenti, di passare questi ultimi al \textit{MultiClassifier} e infine di acquisire da quest'ultimo il report da restuituire in risposta. 
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[scale=0.5]{images/uml_main.png}
+    \caption{Schema UML del \textit{MainController} e delle sue interazioni}
+    \label{fig:uml_main}
+\end{figure}
+Essendo l'elemento centrale dell'applicativo, si è deciso di applicare il design pattern \textit{Singleton}, in modo che l'architettura vgodi base fosse istanziata una sola volta, necessità nata soprattutto per quel che riguarda la seconda fase di classificazione, come verrà spiegato in seguito nella prossima sottosezione. L'obiettivo del \textit{MainController} è quindi quello di gestire e coordinare la "comunicazione" tra le due parti principali dell'applicativo ogni volta che vengono passati al server nuovi parametri di ricerca. 
+
+\subsubsection{Classificazione dei dati}
+La seconda fase consiste nell'analisi dei dati ottenuti, per stabilire la loro positività o negatività. Per fare ciò si è deciso di creare un oggetto definito come \textit{multiclassificatore} poichè al suo interno vengono utilizzati diversi strumenti per portare a termine la classificazione; il suo comportamento è definito dall'interfaccia \textit{GenericMultiClassifier}. Esso si compone di un insieme di \textit{GenericClassifier}, ovvero classi che implementano un tipo particolare di classificatore. Nel caso del prototipo si è istanziato solo un modello di classificatore, \textit{ClassifierBayes} e una sua variante rappresentata da \textit{ClassifierBayesWNegation}. Nel modellare i \textit{GenericMultiClassifier} si è deciso di applicare il pattern \textit{template method}; infatti una prima implementazione dell'interfaccia consiste in una classe astratta, \textit{MultiClassifier}, all'interno della quale è definito il metodo per calcolare il risultato della singola classificazione da parte dei GenericClassifier. Sono invece lasciati astratti i metodi che stabiliscono come pesare i risultati per un singolo oggetto \textit{Data} e per la redazione del report finale. Questo permetterà di creare diversi tipi di MultiClassificatori che seguono politiche diverse nell'agglomerare i dati; all'interno del prototipo si è creata l'implementazione \textit{MultiClassifierImpl}. 
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.5]{images/uml_classifier.png}
+    \caption{Schema UML della gerarchia di MultiClassificatori e Classificatori semplici}
+    \label{fig:uml_classifier}
+\end{figure} 
+
+Per la realizzazione della classe \textit{ClassifierBayes} sono stati utilizzati gli strumenti messi a disposizione dalla libreria Apache Lucene. Esso istanzia al suo interno un \textit{SimpleNaiveBayesClassifier} che viene addestrato tramite un Index, la cui gestione è affidata alla classe \textit{IndexController}. Quest'ultima si occupa della creazione e della popolazione dell'indice tramite il training set prescelto al momento della creazione del \textit{ClassifierBayes}. Per la corretta analisi del training set è necessario utilizzare un \textit{Analyzer}, in particolare per lo sviluppo del prototipo si è istanziato un \textit{ItalianAnalyzer}, strumento sempre fornito dalla libreria. Esso permette quindi una corretta fase di preprocessing dei testi secondo le regole sintattiche e semantiche della lingua italiana. Inoltre ogni \textit{GenericClassifier} è caratterizzato da due parametri, \textit{weight} che rappresenta il peso che ha all'interno del \textit{GenericMultiClassifier} e \textit{minConfidence}, ovvero il minimo \textit{score} considerato valido in fase di classificazione; sotto la suddetta soglia il risultato della classificazione non viene preso in considerazione. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.53]{images/uml_bayes.png}
+    \caption{Schema UML degli elementi }
+    \label{fig:uml_bayes}
+\end{figure}
+
+Il training set è recuperato da un database relazionale alla base dell'applicativo. Per l'interfacciamento si è deciso di utilizzare il framework Hibernate, il quale implementa un approccio di tipo ORM (Object-Relational Mapping); questo è gestito attraverso la classe \textit{HibernateUtils}, alla quale è affidato il compito di ottenere sia i \textit{TrainingText} che i \textit{TestText}, rispettivamente i testi utilizzati per l'addestramento e quelli utilizzati in fase di testing. Queste ultime classi citate sono classi tipo \textit{bean}, anche dette \textit{POJO} (Plain Old Java Object), il cui unico scopo è mappare gli oggetti presenti all'interno del DB. Poichè la fase di addestramento prevede dunque l'accesso al database per l'estrazione dei TrainingText, si è deciso, come anticipato in precedenza, di progettare la classe \textit{MainController} come Singleton, affinchè questa operazione fosse effettuata solo al primo utilizzo del server, senza ripeterla a ogni nuova richiesta. \newline 
+Una volta addestrato, il classificatore è quindi in grado di stabilire a quale classe appartiene il testo proveniente dall'oggetto \textit{Data} in analisi. Esso quindi restituirà un oggetto di tipo \textit{ClassifierResult} che modella il risultato ottenuto, contenente al suo interno sia il testo oggetto di analisi, sia la polarità assegnatagli con il relativo punteggio. \newline
+Il multiclassificatore, una volta ottenuti tutti i risultati dei classificatori semplici, perfezionerà ulteriormente la classificazione in base a elementi, quali la presenza di intensificatori di sentimento, che andranno a modificare lo score finale da assegnare al dato in analisi. Questo studio del dato viene portato avanti dalla classe \textit{SemanticAnalyzer} la quale verifica la presenza dei suddetti intensificatori. Un altro fattore di cui si tiene conto è la \textit{relevance} del dato in analisi; essa rappresenta un valore numerico indicativo della visibilità del contenuto. Nel caso specifico di Twitter, viene calcolata basandosi su il numero di likes e di retweet del tweet, oltre che sul numero di followers dell'autore; è evidente che questo tipo di calcolo è fortemente dipendente dalla sorgente del dato. Per mantenere la struttura del multiclassificatore completamente dissociata da questa dipendenza, il calcolo del valore di \textit{relevance} di un dato viene affidato a un'altra classe a sè stante, \textit{Logic}, che si occuperà di calcolarlo in maniera opportuna in base alla sorgente dell'oggetto Data (valore che viene salvato al suo interno, che assume i valori presenti all'intero della enumeration Source). \newline
+Completata la fase di unione dei risultati in base ai fattori sopra descritti, si procede alla creazione di un oggetto \textit{Report}, che riassumerà al suo interno i risultati ottenuti: la sua struttura è ovviamente identica a quella descritta nella Sezione 3.1.1. 
+
+\subsubsection{Scenari di fallimento}
+L'operazione di analisi del server può fallire a fronte di due particolari scenari:
+\begin{itemize}
+    \item \textbf{Parametri di ricerca insufficienti a eseguire la query}: affinchè sia possibile effettuare la query per ottenere dati, i parametri inseriti devono essere sufficientemente precisi; nel caso particolare di Twitter deve essere presente almeno autore, o parole chiave o persone taggate. In caso contrario al tentativo di effettuare la richiesta, verrà lanciata l'eccezione \textit{QueryException}, gestita come descritto nel diagramma \ref{fig:fail_scenario2}.
+    \begin{figure}[h]
+        \centering
+        \includegraphics[scale=0.5]{images/failure_scenario2.png}
+        \caption{Esempio di gestione dell'eccezione nel caso di Twitter}
+        \label{fig:fail_scenario2}
+    \end{figure}
+    \item \textbf{Dati analizzabili insufficienti}: tale scenario si presenta nel caso in cui la query eseguita non restituisca risultati o nel caso in cui, pur restituendo risultati, essi siano considerati non classificabili (quindi lo score dei classificatori non superi la soglia di \textit{minConfidence} stabilita). In questo caso i componenti operano come descritto in figura  \ref{fig:fail_scenario}. 
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[scale=0.5]{images/failure_scenario.png}
+        \caption{Scenario di fallimento dovuto a dati insufficienti; \textit{dataList} rappresenta la lista di dati ancora da analizzare, \textit{total} rappresenta il numero totale di dati analizzati.}
+        \label{fig:fail_scenario}
+    \end{figure}
+\end{itemize}
+In entrambi i casi è essenziale che il campo \textit{status} venga settato a "NOTOK"; ciò permetterà al client di intercettare l'errore e adeguare la risposta da dare all'utente. La classe \textit{Report} è strutturata come semplice POJO in quanto rappresenta l'oggetto JSON che verrà restituito al client alla richiesta. 
+\subsubsection{File di configurazione}
+Si è deciso di rendere la struttura del server configurabile tramite un file esterno di tipo JSON, contenente le seguenti impostazioni:
+\begin{itemize}
+    \item Sorgenti supportate: elenco delle sorgenti per il quale verrà istanziato un \textit{SourceController}.
+    \item Informazioni sul Multiclassifier: tipo di \textit{GenericMultiClassifier} da istanziare (assumendo che ce ne siano diverse implementazioni). 
+    \item Elenco dei \textit{GenericClassifier} da utilizzare all'interno del multiclassificatore; per ognuno è specificato tipo, id del training set con cui verranno addestrati, peso che avranno all'interno del multiclassificatore e il livello di \textit{minConfidence}. 
+    \item Dati di Twitter: sono qui memorizzate le key e i token necessari per avere accesso alle API di Twitter; inoltre sono salvate alcuni valori come il numero massimo di tweet che si vogliono recuperare per ogni analisi.
+\end{itemize}
+
+Per la lettura del file di configurazione è stata creata la classe \textit{Configuration}, la quale sfrutta gli strumenti messi a disposizione dalla libreria TypeSafe config\footnote{https://github.com/typesafehub/config}. Tramite \textit{Configuration} è possibile ottenere sia la lista dei \textit{SourceController} specificati nel file, sia il multiclassificatore già configurato in tutti i suoi aspetti, oltre ai vari parametri inseriti all'interno del file. \newline
+Questa modalità è stata scelta per rendere la modifica di parametri come il peso dei classificatori, o la \textit{minConfidence} il più semplice possibile, senza necessariamente dover mettere mano al codice. Inoltre rende estremamente meno oneroso aggiungere o rimuovere classificatori semplici, in quanto la creazione di essi è totalmente dinamica, in base a quanto specificato nel file di configurazione. 

@@ -1,0 +1,89 @@
+\documentclass[12pt,a4paper,twoside,openright]{book}
+\usepackage[italian]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{style/isi_style_lt}
+\usepackage{wrapfig}
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
+\usepackage{caption}
+\usepackage[usenames]{color}
+\usepackage{enumerate}
+\usepackage{fancyhdr}
+\usepackage{fancyvrb}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{listings}
+\usepackage{marvosym}
+\usepackage{multicol}
+\usepackage{sectsty}
+\usepackage{subcaption}
+\usepackage{tocloft}
+\usepackage[table]{xcolor}
+\usepackage{url}
+\linespread{1.05}
+\input{style/settings.tex}
+
+\universita{Alma Mater Studiorum -- Università di Bologna}
+
+\campus{Campus di Cesena}
+
+\scuola{Scuola di Scienze}
+
+\corsodilaurea{Corso di Laurea in Ingegneria e Scienze Informatiche}
+
+\titolo{Modellazione e prototipazione di un modulo aziendale per la sentiment analysis da sorgenti di dati non strutturati}
+
+\materia{Laboratorio di Basi di Dati}
+
+\laureando{Lisa Mazzini}
+
+\relatore[Prof.]{Matteo Golfarelli}
+%\correlatoreB[Ing.]{Nome Cognome}
+
+\sessione{Seconda} % 'Prima', 'Seconda', 'Terza'
+
+\annoaccademico{2015 -- 2016}
+
+\parolechiave %devono essere 5 keywords
+{Sentiment Analysis}
+{Natural Language Processing}
+{Text Mining}
+{Opinion Mining}
+{Twitter}
+
+
+
+\dedica{dedica} %commentare per non inserire la dedica
+
+\makeindex
+
+\begin{document}
+
+\frontmatter 
+
+\maketitle
+
+\tableofcontents
+
+\input{introduzione.tex}
+	
+\mainmatter
+
+\pagestyle{fancy} 
+\fancyhead[LE,RO]{\thepage}
+\fancyfoot{}
+
+\input{capitolo1.tex}
+\input{capitolo2.tex}
+\input{capitolo3.tex}
+\input{capitolo4.tex}
+
+\input{conclusioni.tex}	
+\input{ringraziamenti.tex}
+	
+\backmatter	
+
+\input{bibliografia.tex}
+
+\end{document}
